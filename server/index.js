@@ -2,13 +2,16 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const stripe = require("stripe")("STRIPE_SECRET_KEY");
+const stripe = require("stripe")(
+  "sk_test_51LGI14B8jHrxy8evqwIhUucmp9wJLl3mDgEmHj3xoed8JgULJUQR1bCcIMxJRz2CMMdrfsuxyYELACqUi0LHPdn300iGIGXYFK"
+);
 
 const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
 
+// create a new stripe connected account
 app.post("/api/stripe/connect", async (req, res) => {
   console.log("connecting to stripe");
 
@@ -17,9 +20,9 @@ app.post("/api/stripe/connect", async (req, res) => {
       type: "express",
       business_type: "individual",
       individual: {
-        first_name: "Kai",
-        last_name: "hervez",
-        email: "kaihervez@gmail.com",
+        first_name: "Kris",
+        last_name: "Bik",
+        email: "krisbik@gmail.com",
         // dob: {
         //   day: 1,
         //   month: 1,
@@ -36,8 +39,10 @@ app.post("/api/stripe/connect", async (req, res) => {
         // phone: "555-555-5555",
       },
       metadata: {
-        slug: "kai-hervez-individual-account",
+        slug: "kris-bik-individual-account",
+        name: "kris bik Individual Account",
       },
+      settings: { payouts: { schedule: { interval: "manual" } } },
     });
 
     console.log(account);
@@ -50,10 +55,11 @@ app.post("/api/stripe/connect", async (req, res) => {
 // test mode client ID ca_LyFAlRUtUBMNL8m8DpBtqb3x2MgvczUN
 // stripe test bank acct 000123456789
 
+// create an account link to update bank details and enable payments, payouts
 app.post("/api/stripe/link", async (req, res) => {
   try {
     const accountLink = await stripe.accountLinks.create({
-      account: "acct_1LGK2TBXAA4J26qQ",
+      account: "acct_1LKLGbPUnEwgEBVx",
       refresh_url: "http://localhost:3000/",
       return_url: "http://localhost:3000/",
       type: "account_onboarding",
@@ -70,7 +76,7 @@ app.post("/api/stripe/link", async (req, res) => {
 app.get("/api/stripe/account", async (req, res) => {
   console.log("getting account");
   try {
-    const account = await stripe.accounts.retrieve("acct_1LGNbABL7LmCNVVi");
+    const account = await stripe.accounts.retrieve("acct_1LKJ7wPbfAAaBjUr");
     console.log(account);
     res.send(account);
   } catch (err) {
@@ -78,6 +84,69 @@ app.get("/api/stripe/account", async (req, res) => {
   }
 });
 
+// get account balance
+app.get("/api/account/balance", async (req, res) => {
+  console.log("getting balance");
+  try {
+    const balance = await stripe.balance.retrieve({
+      stripeAccount: "acct_1LKLGbPUnEwgEBVx",
+    });
+
+    console.log(balance);
+    res.send(balance);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+// get account list of payouts
+app.get("/api/account/payouts", async (req, res) => {
+  console.log("getting payouts");
+  try {
+    const payouts = await stripe.payouts.list({
+      stripeAccount: "acct_1LGNbABL7LmCNVVi",
+    });
+
+    console.log(payouts);
+    res.send(payouts);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+// get a particular payout details
+app.get("/api/payout", async (req, res) => {
+  console.log("getting a particular payout");
+  try {
+    const payouts = await stripe.payouts.retrieve(
+      "po_1LJS7hBL7LmCNVVi4GpFQyoM"
+    );
+
+    console.log(payouts);
+    res.send(payouts);
+  } catch (err) {
+    console.log(err);
+  }
+});
+
+// manually create a stripe payout
+app.post("/api/payout", async (req, res) => {
+  // request for payout from stripe at least 7 days after payment
+  const payout = await stripe.payouts.create(
+    {
+      amount: 500,
+      currency: "cad",
+    },
+    {
+      stripeAccount: "acct_1LKLGbPUnEwgEBVx",
+    }
+  );
+
+  console.log(payout);
+  res.send(payout);
+});
+
+// update stripe account
 app.post("/api/stripe/update", async (req, res) => {
   console.log("updating account");
   try {
@@ -92,6 +161,7 @@ app.post("/api/stripe/update", async (req, res) => {
   }
 });
 
+// perform a stripe payment to a connected account
 app.post("/api/stripe/pay", async (req, res) => {
   console.log("paying");
   try {
@@ -114,9 +184,9 @@ app.post("/api/stripe/pay", async (req, res) => {
       success_url: "http://localhost:3000/success",
       cancel_url: "http://localhost:3000/failure",
       payment_intent_data: {
-        application_fee_amount: 10,
+        application_fee_amount: 200,
         transfer_data: {
-          destination: "acct_1LGIieBFLXwhRea3",
+          destination: "acct_1LKLGbPUnEwgEBVx",
         },
       },
     });
@@ -128,6 +198,7 @@ app.post("/api/stripe/pay", async (req, res) => {
   }
 });
 
+// create a stripe payment intent
 app.post("/create-checkout-session", async (req, res) => {
   const session = await stripe.checkout.sessions.create({
     line_items: [
