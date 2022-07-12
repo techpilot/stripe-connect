@@ -9,7 +9,7 @@ const stripe = require("stripe")(
 const app = express();
 
 app.use(cors());
-app.use(bodyParser.json());
+// app.use(bodyParser.json());
 
 // create a new stripe connected account
 app.post("/api/stripe/connect", async (req, res) => {
@@ -20,8 +20,8 @@ app.post("/api/stripe/connect", async (req, res) => {
       type: "express",
       business_type: "individual",
       individual: {
-        first_name: "Kris",
-        last_name: "Bik",
+        first_name: "new",
+        last_name: "test",
         email: "krisbik@gmail.com",
         // dob: {
         //   day: 1,
@@ -57,6 +57,7 @@ app.post("/api/stripe/connect", async (req, res) => {
 
 // create an account link to update bank details and enable payments, payouts
 app.post("/api/stripe/link", async (req, res) => {
+  console.log(req.body);
   try {
     const accountLink = await stripe.accountLinks.create({
       account: "acct_1LKLGbPUnEwgEBVx",
@@ -67,7 +68,8 @@ app.post("/api/stripe/link", async (req, res) => {
     });
 
     // console.log(accountLink);
-    res.send(accountLink?.url);
+    res.redirect(303, accountLink.url);
+    // res.send(accountLink?.url);
   } catch (err) {
     console.log(err);
   }
@@ -76,7 +78,7 @@ app.post("/api/stripe/link", async (req, res) => {
 app.get("/api/stripe/account", async (req, res) => {
   console.log("getting account");
   try {
-    const account = await stripe.accounts.retrieve("acct_1LKJ7wPbfAAaBjUr");
+    const account = await stripe.accounts.retrieve("acct_1LGNbABL7LmCNVVi");
     console.log(account);
     res.send(account);
   } catch (err) {
@@ -107,7 +109,15 @@ app.get("/api/account/payouts", async (req, res) => {
       stripeAccount: "acct_1LGNbABL7LmCNVVi",
     });
 
-    console.log(payouts);
+    const date = new Date(payouts.data[0].created);
+    let payoutsAmount = 0;
+
+    payouts.data.map((payout) => {
+      payoutsAmount += payout.amount;
+    });
+    console.log(payoutsAmount);
+    console.log(date);
+
     res.send(payouts);
   } catch (err) {
     console.log(err);
@@ -118,12 +128,10 @@ app.get("/api/account/payouts", async (req, res) => {
 app.get("/api/payout", async (req, res) => {
   console.log("getting a particular payout");
   try {
-    const payouts = await stripe.payouts.retrieve(
-      "po_1LJS7hBL7LmCNVVi4GpFQyoM"
-    );
+    const payout = await stripe.payouts.retrieve("po_1LJS7hBL7LmCNVVi4GpFQyoM");
 
-    console.log(payouts);
-    res.send(payouts);
+    console.log(payout);
+    res.send(payout);
   } catch (err) {
     console.log(err);
   }
@@ -191,8 +199,9 @@ app.post("/api/stripe/pay", async (req, res) => {
       },
     });
 
-    console.log(session);
-    res.redirect(303, session.url);
+    // console.log(session);
+    res.send(session);
+    // res.redirect(303, session.url);
   } catch (err) {
     console.log(err);
   }
@@ -218,9 +227,105 @@ app.post("/create-checkout-session", async (req, res) => {
     cancel_url: "http://localhost:3000/failure",
   });
 
-  console.log(session);
+  // console.log(session);
   res.redirect(303, session.url);
 });
+
+// == STRIPE WEBHOOK ==
+
+const fulfillOrder = async (session) => {
+  const paymentIntent = await stripe.paymentIntents.retrieve(
+    "pi_3LKeWdB8jHrxy8ev0w0HTFvk"
+  );
+  // TODO: fill me in
+  console.log("Fulfilled order", paymentIntent);
+  console.log(paymentIntent.amount);
+};
+
+const createOrder = (session) => {
+  // TODO: fill me in
+  console.log("Creating order", session);
+};
+
+const emailCustomerAboutFailedPayment = (session) => {
+  // TODO: fill me in
+  console.log("Emailing customer", session);
+};
+
+// Stripe webhook for a completed checkout session
+app.post(
+  "/webhook",
+  bodyParser.raw({ type: "application/json" }),
+  async (req, res) => {
+    // with signature verification
+    const payload = req.body;
+    const sig = req.headers["stripe-signature"];
+    const endpointSecret =
+      "whsec_240dfb7a29b0e79a4253f4508f4ee3e21298a8eff00f2b8ea6756b9220071030";
+
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
+    } catch (err) {
+      console.log(err);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        // Save an order in your database, marked as 'awaiting payment'
+        createOrder(session);
+
+        // Check if the order is paid (for example, from a card payment)
+        //
+        // A delayed notification payment will have an `unpaid` status, as
+        // you're still waiting for funds to be transferred from the customer's
+        // account.
+        if (session.payment_status === "paid") {
+          fulfillOrder(session);
+        }
+
+        break;
+      }
+
+      case "checkout.session.async_payment_succeeded": {
+        const session = event.data.object;
+
+        // Fulfill the purchase...
+        fulfillOrder(session);
+
+        break;
+      }
+
+      case "checkout.session.async_payment_failed": {
+        const session = event.data.object;
+
+        // Send an email to the customer asking them to retry their order
+        emailCustomerAboutFailedPayment(session);
+
+        break;
+      }
+
+      case "payout.created": {
+        const payout = event.data.object;
+        console.log("payout created", payout);
+
+        break;
+      }
+
+      case "payout.paid": {
+        const payout = event.data.object;
+        console.log("payout paid", payout);
+
+        break;
+      }
+    }
+
+    res.status(200).json({ success: true });
+  }
+);
+// whsec_240dfb7a29b0e79a4253f4508f4ee3e21298a8eff00f2b8ea6756b9220071030
 
 const server = require("http").createServer(app);
 // const io = require("socket.io")(server);

@@ -16,8 +16,18 @@ const Home = () => {
     console.log(res.data);
   };
 
+  const getPayments = async () => {
+    // const res = await axios.get("/api/account/payments");
+    // console.log(res.data);
+  };
+
   const getPayouts = async () => {
     const res = await axios.get("/api/account/payouts");
+    console.log(res.data);
+  };
+
+  const getPayout = async () => {
+    const res = await axios.get("/api/payout");
     console.log(res.data);
   };
 
@@ -32,6 +42,11 @@ const Home = () => {
     window.open(res.data);
   };
 
+  const checkout = async () => {
+    const res = await axios.post("/api/stripe/pay");
+    window.open(res.data?.url);
+  };
+
   return (
     <div>
       <button onClick={connectStripe} style={{ margin: "20px" }}>
@@ -39,13 +54,17 @@ const Home = () => {
       </button>
       <button onClick={getAccount}>get account</button>
       <button onClick={getBalance}>get balance</button>
+      <button onClick={getPayments}>get payments</button>
       <button onClick={getPayouts}>get payouts</button>
+      <button onClick={getPayout}>get a payout</button>
       <button onClick={updateAccount}>update account</button>
-      <button onClick={getAccountLink}>account link</button>
-      <br />
-      <form action="/api/stripe/pay" method="POST">
-        <button type="submit">Checkout</button>
+      <form action="/api/stripe/link" method="POST">
+        <button type="submit">account link</button>
       </form>
+      <br />
+
+      <button onClick={checkout}>Checkout</button>
+
       <br />
       <form action="/create-checkout-session" method="POST">
         <button type="submit">platform</button>
