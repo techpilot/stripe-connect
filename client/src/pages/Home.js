@@ -3,7 +3,8 @@ import axios from "axios";
 const Home = () => {
   const connectStripe = async () => {
     const res = await axios.post("/api/stripe/connect");
-    console.log(res);
+    console.log("account, link", res.data);
+    window.open(res.data.link);
   };
 
   const getAccount = async () => {
@@ -36,10 +37,16 @@ const Home = () => {
     console.log(res);
   };
 
-  const getAccountLink = async () => {
-    const res = await axios.post("/api/stripe/link");
+  const deleteAccount = async () => {
+    const res = await axios.delete("/api/stripe/delete");
     console.log(res);
-    window.open(res.data);
+  };
+
+  const getAccountLink = async () => {
+    const data = { hello: "world" };
+    await axios.post("/api/stripe/link", data);
+    // console.log(res);
+    // window.open(res.data);
   };
 
   const checkout = async () => {
@@ -57,10 +64,11 @@ const Home = () => {
       <button onClick={getPayments}>get payments</button>
       <button onClick={getPayouts}>get payouts</button>
       <button onClick={getPayout}>get a payout</button>
+      <button onClick={deleteAccount}>delete account</button>
       <button onClick={updateAccount}>update account</button>
-      <form action="/api/stripe/link" method="POST">
-        <button type="submit">account link</button>
-      </form>
+
+      <button onClick={getAccountLink}>account link</button>
+
       <br />
 
       <button onClick={checkout}>Checkout</button>
