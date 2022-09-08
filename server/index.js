@@ -2,8 +2,14 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const stripe = require("stripe")("");
+const stripe = require("stripe")(
+  "sk_test_51LGI14B8jHrxy8evqwIhUucmp9wJLl3mDgEmHj3xoed8JgULJUQR1bCcIMxJRz2CMMdrfsuxyYELACqUi0LHPdn300iGIGXYFK"
+);
 const https = require("https");
+
+let paystack = require("paystack-api")(
+  "sk_test_eda69f1116cb64fedc254180185998c496301682"
+);
 
 const app = express();
 
@@ -284,7 +290,8 @@ app.post("/webhook", async (req, res) => {
   // with signature verification
   const payload = req.rawBody;
   const sig = req.headers["stripe-signature"];
-  const endpointSecret = "";
+  const endpointSecret =
+    "whsec_240dfb7a29b0e79a4253f4508f4ee3e21298a8eff00f2b8ea6756b9220071030";
 
   let event;
   try {
@@ -367,7 +374,7 @@ app.post("/webhook", async (req, res) => {
 
   res.status(200).json({ success: true });
 });
-//
+// whsec_240dfb7a29b0e79a4253f4508f4ee3e21298a8eff00f2b8ea6756b9220071030
 
 const server = require("http").createServer(app);
 // const io = require("socket.io")(server);
@@ -382,26 +389,79 @@ server.listen(port, () => {
 // PAYSTACK
 // ============================
 
-app.post("/create-checkout-session", async (req, res) => {
-  const params = JSON.stringify({
+app.get("/create-paystack", async (req, res) => {
+  // console.log("getting..");
+  // let accts = "";
+  // await paystack.subaccount
+  //   .list()
+  //   .then(function (body) {
+  //     // console.log(body);
+  //     accts = body;
+  //   })
+  //   .catch(function (error) {
+  //     console.log(error);
+  //   });
+  // console.log("BANK", accts);
+  const params = {
     business_name: "Cheese Sticks",
-    bank_code: "058",
+    settlement_bank: "058",
     account_number: "0123456789",
-    percentage_charge: 0.2,
+    percentage_charge: 10,
+  };
+
+  // await paystack.subaccount
+  //   .create(params)
+  //   .then(function (body) {
+  //     console.log(body);
+  //   })
+  //   .catch(function (error) {
+  //     console.log(error);
+  //   });
+
+  // await paystack.verification
+  //   .resolveAccount({ account_number: "0422913233", bank_code: "058" })
+  //   .then(function (body) {
+  //     console.log(body);
+  //   })
+  //   .catch(function (error) {
+  //     console.log(error);
+  //   });
+
+  await paystack.transaction
+    .initialize({
+      amount: "20000",
+      email: "ngwustephen99@gmail.com",
+      subaccount: "ACCT_avduoduig8x6ofs",
+    })
+    .then(function (body) {
+      console.log(body);
+    })
+    .catch(function (error) {
+      console.log(error);
+    });
+});
+
+app.get("/create-tx", async () => {
+  const https = require("https");
+
+  const params = JSON.stringify({
+    email: "customer@email.com",
+    amount: "20000",
+    subaccount: "ACCT_avduoduig8x6ofs",
   });
 
   const options = {
     hostname: "api.paystack.co",
     port: 443,
-    path: "/subaccount",
+    path: "/transaction/initialize",
     method: "POST",
     headers: {
-      Authorization: "Bearer SECRET_KEY",
+      Authorization: "Bearer sk_test_eda69f1116cb64fedc254180185998c496301682",
       "Content-Type": "application/json",
     },
   };
 
-  const resData = https
+  const req = https
     .request(options, (res) => {
       let data = "";
 
@@ -417,8 +477,6 @@ app.post("/create-checkout-session", async (req, res) => {
       console.error(error);
     });
 
-  resData.write(params);
-  resData.end();
+  req.write(params);
+  req.end();
 });
-
-app;

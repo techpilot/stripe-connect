@@ -1,10 +1,9 @@
 import axios from "axios";
 
 const Home = () => {
-  const connectStripe = async () => {
-    const res = await axios.post("/api/stripe/connect");
-    console.log("account, link", res.data);
-    window.open(res.data.link);
+  const connectPaystack = async () => {
+    const res = await axios.get("/create-paystack");
+    console.log(res);
   };
 
   const getAccount = async () => {
@@ -56,32 +55,10 @@ const Home = () => {
 
   return (
     <div>
-      <button onClick={connectStripe} style={{ margin: "20px" }}>
-        connect stripe
+      <button onClick={connectPaystack} style={{ margin: "20px" }}>
+        connect paystack
       </button>
-      <button onClick={getAccount}>get account</button>
-      <button onClick={getBalance}>get balance</button>
-      <button onClick={getPayments}>get payments</button>
-      <button onClick={getPayouts}>get payouts</button>
-      <button onClick={getPayout}>get a payout</button>
-      <button onClick={deleteAccount}>delete account</button>
-      <button onClick={updateAccount}>update account</button>
-
-      <button onClick={getAccountLink}>account link</button>
-
       <br />
-
-      <button onClick={checkout}>Checkout</button>
-
-      <br />
-      <form action="/create-checkout-session" method="POST">
-        <button type="submit">platform</button>
-      </form>
-      <br />
-
-      <form action="/api/payout" method="POST">
-        <button type="submit">request payout</button>
-      </form>
     </div>
   );
 };
